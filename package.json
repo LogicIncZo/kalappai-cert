@@ -1,0 +1,22 @@
+{
+  "name": "kalappai-cert",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Certification service for Kalappai (கலப்பை) typing tutor — W3C Verifiable Credentials (VC-JWT, EdDSA) + Open Badges 3.0-shaped achievement, QR verify pages, HMAC tamper-evidence",
+  "type": "module",
+  "scripts": {
+    "dev": "bun src/index.ts",
+    "start": "bun src/index.ts",
+    "test": "bun test ./test/",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "hono": "^4.13.8",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "@types/qrcode": "^1.5.6",
+    "typescript": "^7.0.2"
+  }
+}
