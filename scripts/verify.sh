@@ -11,10 +11,13 @@
 #   4. lint               — biome (lint only; the formatter is deliberately off)
 #   5. tests              — contract conformance + server + cognizance
 #   6. live smoke         — boots the real entrypoint and drives it end to end
-#   7. hygiene            — no secrets, no committed database, no stray artifacts
+#   7. demo               — the demo seeds a spawned instance and every seeded
+#                           certificate verifies (page, QR, VC-JWT vs JWKS)
+#   8. hygiene            — no secrets, no committed database, no stray artifacts
 #
 # Usage:  bun run verify          (all stages)
-#         bun run verify --fast   (skip lint + smoke; for the tight inner loop)
+#         bun run verify --full   (also drive the documented public demo entrypoint)
+#         bun run verify --fast   (skip lint + smoke + demo; the tight inner loop)
 #
 # Exits non-zero on the first failing stage, so it can gate a commit hook, CI,
 # or a loop iteration. Nothing here reaches the network.
@@ -22,7 +25,11 @@
 set -uo pipefail
 
 FAST=0
-[ "${1:-}" = "--fast" ] && FAST=1
+FULL=0
+for a in "$@"; do
+  [ "$a" = "--fast" ] && FAST=1
+  [ "$a" = "--full" ] && FULL=1
+done
 
 BOLD='\033[1m'; RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; DIM='\033[2m'; NC='\033[0m'
 
@@ -62,37 +69,53 @@ if ! command -v bun >/dev/null 2>&1; then
   exit 1
 fi
 
-echo -e "${BOLD}kalappai-cert — verification gate${NC} ${DIM}$([ "$FAST" -eq 1 ] && echo '(fast: lint + smoke skipped)')${NC}"
+echo -e "${BOLD}kalappai-cert — verification gate${NC} ${DIM}$([ "$FAST" -eq 1 ] && echo '(fast: lint + smoke + demo skipped)')${NC}"
 
-step "1/7  Contract artifact matches the declared surface"
+step "1/8  Contract artifact matches the declared surface"
 run_stage "contract" bun run contract:check
 
-step "2/7  README documents exactly the contract"
+step "2/8  README documents exactly the contract"
 run_stage "docs" bun run docs:check
 
-step "3/7  Typecheck"
+step "3/8  Typecheck"
 run_stage "typecheck" bun run typecheck
 
 if [ "$FAST" -eq 0 ]; then
-  step "4/7  Lint"
+  step "4/8  Lint"
   run_stage "lint" bun run lint
 else
   echo ""
-  echo -e "${YELLOW}–${NC} 4/7  Lint ${DIM}(skipped)${NC}"
+  echo -e "${YELLOW}–${NC} 4/8  Lint ${DIM}(skipped)${NC}"
 fi
 
-step "5/7  Tests (contract conformance + server + cognizance)"
+step "5/8  Tests (contract conformance + server + cognizance)"
 run_stage "tests" bun test ./test/
 
 if [ "$FAST" -eq 0 ]; then
-  step "6/7  Live smoke (spawns the documented entrypoint, drives it end to end)"
+  step "6/8  Live smoke (spawns the documented entrypoint, drives it end to end)"
   run_stage "smoke" bun run smoke
 else
   echo ""
-  echo -e "${YELLOW}–${NC} 6/7  Live smoke ${DIM}(skipped)${NC}"
+  echo -e "${YELLOW}–${NC} 6/8  Live smoke ${DIM}(skipped)${NC}"
 fi
 
-step "7/7  Hygiene (no secrets, no committed database, no stray artifacts)"
+# The demo is a claim about the service too: a documented path that no longer
+# runs is worse than an undocumented one. Check mode uses the seed script
+# directly; --full exercises the documented public entrypoint (demo/run.sh).
+if [ "$FAST" -eq 0 ]; then
+  if [ "$FULL" -eq 1 ]; then
+    step "7/8  Demo (the public demo path: demo/run.sh --check)"
+    run_stage "demo" bash demo/run.sh --check
+  else
+    step "7/8  Demo (seeds a spawned instance; every seeded certificate verifies)"
+    run_stage "demo" bun run demo:seed --check
+  fi
+else
+  echo ""
+  echo -e "${YELLOW}–${NC} 7/8  Demo ${DIM}(skipped)${NC}"
+fi
+
+step "8/8  Hygiene (no secrets, no committed database, no stray artifacts)"
 hygiene_fail=0
 
 # The issuer key and the certificate database must never be committed.
@@ -119,8 +142,9 @@ else
 fi
 
 # The gate must not be able to pass by having been edited into a no-op.
-if ! grep -q "bun run contract:check" scripts/verify.sh || ! grep -q "bun run docs:check" scripts/verify.sh; then
-  echo -e "  ${RED}✗${NC} this gate no longer runs the contract and docs checks"
+if ! grep -q "bun run contract:check" scripts/verify.sh || ! grep -q "bun run docs:check" scripts/verify.sh \
+   || ! grep -q "bun run demo:seed --check" scripts/verify.sh; then
+  echo -e "  ${RED}✗${NC} this gate no longer runs the contract, docs and demo checks"
   hygiene_fail=1
 fi
 if [ ! -f contract/cert-service.v1.json ]; then

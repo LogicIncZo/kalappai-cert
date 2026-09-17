@@ -1,0 +1,26 @@
+# Self-host kalappai-cert with a durable volume for the issuer key and database.
+#
+#   cd deploy && KALAPPAI_CERT_SECRET=$(openssl rand -hex 32) \
+#     KALAPPAI_CERT_BASE=https://cert.example.com docker compose up -d
+#
+# KALAPPAI_CERT_BASE is baked into QR codes, credential ids and verifyUrl, so it
+# must be the public URL clients will actually reach — set it before first issue.
+
+services:
+  cert:
+    image: ghcr.io/logicinczo/kalappai-cert:latest
+    # build: ..
+    restart: unless-stopped
+    ports:
+      - "8123:8123"
+    environment:
+      PORT: 8123
+      KALAPPAI_CERT_DB: /data/certs.db
+      KALAPPAI_CERT_BASE: ${KALAPPAI_CERT_BASE:?set the public base URL}
+      KALAPPAI_CERT_SECRET: ${KALAPPAI_CERT_SECRET:?set a stable HMAC secret}
+      KALAPPAI_CERT_ORIGIN: ${KALAPPAI_CERT_ORIGIN:-*}
+    volumes:
+      - cert-data:/data
+
+volumes:
+  cert-data:

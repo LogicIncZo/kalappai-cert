@@ -1,12 +1,25 @@
 name: CI
 
+# The loop gate. One command ("bun run verify") is the contract between a change
+# and a commit: it is the same suite a human runs locally, an agent runs before
+# proposing a change, and CI runs before anything is allowed to deploy.
+#
+# Jobs are ordered by blast radius: `gate` must pass before `image` or
+# `conformance` are allowed to run at all.
+
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  gate:
+    name: Verification gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,7 +27,69 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - name: Typecheck
-        run: bunx tsc --noEmit -p tsconfig.json
-      - name: Contract tests
-        run: bun test ./test/
+      - name: bun run verify
+        run: bun run verify
+
+  conformance:
+    name: Deployed instance conforms
+    needs: gate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Compare the deployment against the committed contract
+        env:
+          KALAPPAI_CERT_LIVE_URL: ${{ vars.KALAPPAI_CERT_LIVE_URL }}
+        run: |
+          if [ -z "$KALAPPAI_CERT_LIVE_URL" ]; then
+            echo "::warning::KALAPPAI_CERT_LIVE_URL is not set — skipping deployment conformance."
+            echo "Set it in Settings → Secrets and variables → Actions → Variables to arm this check."
+            exit 0
+          fi
+          bun scripts/smoke-live.ts
+
+  image:
+    name: Container image
+    needs: gate
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+      - id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: true
+          sbom: true
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true

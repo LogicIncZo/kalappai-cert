@@ -1,0 +1,11 @@
+# The contract and the gates are the load-bearing parts of this repository: a
+# change to either moves what every issued credential is allowed to claim, so
+# they are review-required by default.
+
+*                       @srikanthlogic
+
+/src/contract.ts        @srikanthlogic
+/contract/              @srikanthlogic
+/scripts/verify.sh      @srikanthlogic
+/test/contract.test.ts  @srikanthlogic
+/docs/ANTI-GAMING.md    @srikanthlogic

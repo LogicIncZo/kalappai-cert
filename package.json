@@ -2,20 +2,22 @@
   "name": "kalappai-cert",
   "private": true,
   "version": "1.0.0",
-  "description": "Certification service for Kalappai (\u0b95\u0bb2\u0baa\u0bcd\u0baa\u0bc8) typing tutor \u2014 W3C Verifiable Credentials (VC-JWT, EdDSA) + Open Badges 3.0-shaped achievement, QR verify pages, HMAC tamper-evidence",
+  "description": "Certification service for Kalappai (கலப்பை) typing tutor — W3C Verifiable Credentials (VC-JWT, EdDSA) + Open Badges 3.0-shaped achievement, QR verify pages, HMAC tamper-evidence",
   "type": "module",
   "scripts": {
     "dev": "bun src/index.ts",
     "start": "bun src/index.ts",
     "test": "bun test ./test/",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "biome check src test scripts --error-on-warnings",
+    "lint": "biome check src test scripts demo --error-on-warnings",
     "contract:emit": "bun scripts/emit-contract.ts",
     "contract:check": "bun scripts/emit-contract.ts --check",
     "docs:check": "bun scripts/check-docs.ts",
     "smoke": "bun scripts/smoke.ts",
-    "verify": "bash scripts/verify.sh",
-    "smoke:live": "bun scripts/smoke-live.ts"
+    "smoke:live": "bun scripts/smoke-live.ts",
+    "demo:seed": "bun demo/seed.ts",
+    "demo:run": "bash demo/run.sh",
+    "verify": "bash scripts/verify.sh"
   },
   "dependencies": {
     "hono": "^4.13.8",
