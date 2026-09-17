@@ -11,6 +11,7 @@
  * Run:  KALAPPAI_CERT_SECRET=... bun server/index.ts   (PORT env respected)
  */
 import { Hono } from "hono";
+import { mountCognizance } from "./cognizance";
 import QRCode from "qrcode";
 import { cors } from "hono/cors";
 import { Database } from "bun:sqlite";
@@ -23,6 +24,8 @@ const SECRET = process.env.KALAPPAI_CERT_SECRET ?? "";
 const DB_PATH = process.env.KALAPPAI_CERT_DB ?? join(import.meta.dir, "data", "certs.db");
 mkdirSync(dirname(DB_PATH), { recursive: true });
 const db = new Database(DB_PATH);
+/** Resolved path of the file this process actually opened — used by tests and ops. */
+export const DB_FILE = DB_PATH;
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS certs (
@@ -177,7 +180,8 @@ const app = new Hono();
 const ALLOW_ORIGIN = process.env.KALAPPAI_CERT_ORIGIN ?? "*";
 app.use("*", cors({ origin: ALLOW_ORIGIN }));
 
-app.get("/", (c) => c.json({ service: "kalappai-cert", ok: true, verify: "/certs/:id" }));
+app.get("/", (c) =>
+  c.json({ service: "kalappai-cert", ok: true, verify: "/certs/:id", cognizance: "/cognizance" }));
 
 app.post("/api/certificates", async (c) => {
   const ip = c.req.header("x-forwarded-for") ?? "local";
@@ -313,6 +317,24 @@ created by the certification server at issue time. Credential format: W3C Verifi
   <a href="${vcJwtB64}" download="kalappai-${id}.vcjwt.txt">Download credential (VC-JWT)</a>
 </div>
 </body></html>`);
+});
+
+/* ------------------------------------------------------------------ *
+ * Cognizance gate (கவனிப்பு) — deliberate-production receipts
+ *
+ * Separate credential type, separate table, same issuer key and JWKS as the
+ * typing certificates, so both verify with the tooling a deployment already has.
+ * ------------------------------------------------------------------ */
+
+mountCognizance(app, {
+  db,
+  base: BASE,
+  issuerId: ISSUER_ID,
+  hmac: sign,
+  vcJwt,
+  newId,
+  limited,
+  ttlDays: Number(process.env.KALAPPAI_COGNIZANCE_TTL_DAYS ?? 90),
 });
 
 export default { port: PORT, fetch: app.fetch };
