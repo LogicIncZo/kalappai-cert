@@ -16,7 +16,7 @@ Each iteration is one unit of work, and ends in a commit that a stranger could v
    rules, rate limits, refusal messages and credential claims. If you change behaviour without
    changing the contract, the gate fails — deliberately.
 3. **Change code and tests together.** Contract-affecting changes also need `contract:emit`.
-4. **Run the gate**: `bun run verify`. Seven stages, no skipping. It must exit 0.
+4. **Run the gate**: `bun run verify`. Nine stages, no skipping. It must exit 0.
 5. **Commit** — conventional-commit subject, imperative, explaining *why* when it is not obvious.
    Never commit `data/` (issuer key, database).
 6. **Deploy** by restarting the Zo service (below) when the change affects the served surface.
@@ -39,7 +39,8 @@ leaving the repo in a state where the gate passes but the deployment is untested
 | 4 | `lint` | Biome (`--error-on-warnings`). Formatting is deliberately off; this is a bug gate, not a style gate. |
 | 5 | `test` | Contract conformance + server + cognizance suites. `test/contract.test.ts` reads only the **artifact** and drives a spawned instance — it cannot pass by agreeing with the source it is meant to check. |
 | 6 | `smoke` | Spawns the documented entrypoint on a temp DB and drives issue → verify → tamper → VC-JWT-against-JWKS end to end. Proves the real entrypoint boots, not just that `app.fetch` works. |
-| 7 | `hygiene` | No committed database or issuer key, no secret-shaped literals in tracked source, no stray artifacts. |
+| 7 | `image:check` | The `Dockerfile` and `deploy/docker-compose.yml` still match the service they package: the CMD entry file exists, EXPOSE matches the default PORT, the healthcheck probes a declared route, `KALAPPAI_CERT_DB` is pinned and its directory is a declared `VOLUME` mounted by compose, and the compose image matches what CI publishes. Runs on every invocation, `--fast` included: it is pure static analysis, and it protects a release path that otherwise only runs on a tag. |
+| 8 | `hygiene` | No committed database or issuer key, no secret-shaped literals in tracked source, no stray artifacts. |
 
 Deployment-side gates (run by CI, and by you after a deploy):
 

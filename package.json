@@ -13,6 +13,7 @@
     "contract:emit": "bun scripts/emit-contract.ts",
     "contract:check": "bun scripts/emit-contract.ts --check",
     "docs:check": "bun scripts/check-docs.ts",
+    "image:check": "bun scripts/check-image.ts",
     "smoke": "bun scripts/smoke.ts",
     "smoke:live": "bun scripts/smoke-live.ts",
     "demo:seed": "bun demo/seed.ts",

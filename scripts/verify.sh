@@ -13,11 +13,13 @@
 #   6. live smoke         — boots the real entrypoint and drives it end to end
 #   7. demo               — the demo seeds a spawned instance and every seeded
 #                           certificate verifies (page, QR, VC-JWT vs JWKS)
-#   8. hygiene            — no secrets, no committed database, no stray artifacts
+#   8. deployability      — the Dockerfile still matches the service it packages
+#                           (entrypoint, port, and a VOLUME holding the issuer key)
+#   9. hygiene            — no secrets, no committed database, no stray artifacts
 #
 # Usage:  bun run verify          (all stages)
 #         bun run verify --full   (also drive the documented public demo entrypoint)
-#         bun run verify --fast   (skip lint + smoke + demo; the tight inner loop)
+#         bun run verify --fast   (skip lint + smoke + demo + deployability)
 #
 # Exits non-zero on the first failing stage, so it can gate a commit hook, CI,
 # or a loop iteration. Nothing here reaches the network.
@@ -71,32 +73,32 @@ fi
 
 echo -e "${BOLD}kalappai-cert — verification gate${NC} ${DIM}$([ "$FAST" -eq 1 ] && echo '(fast: lint + smoke + demo skipped)')${NC}"
 
-step "1/8  Contract artifact matches the declared surface"
+step "1/9  Contract artifact matches the declared surface"
 run_stage "contract" bun run contract:check
 
-step "2/8  README documents exactly the contract"
+step "2/9  README documents exactly the contract"
 run_stage "docs" bun run docs:check
 
-step "3/8  Typecheck"
+step "3/9  Typecheck"
 run_stage "typecheck" bun run typecheck
 
 if [ "$FAST" -eq 0 ]; then
-  step "4/8  Lint"
+  step "4/9  Lint"
   run_stage "lint" bun run lint
 else
   echo ""
-  echo -e "${YELLOW}–${NC} 4/8  Lint ${DIM}(skipped)${NC}"
+  echo -e "${YELLOW}–${NC} 4/9  Lint ${DIM}(skipped)${NC}"
 fi
 
-step "5/8  Tests (contract conformance + server + cognizance)"
+step "5/9  Tests (contract conformance + server + cognizance)"
 run_stage "tests" bun test ./test/
 
 if [ "$FAST" -eq 0 ]; then
-  step "6/8  Live smoke (spawns the documented entrypoint, drives it end to end)"
+  step "6/9  Live smoke (spawns the documented entrypoint, drives it end to end)"
   run_stage "smoke" bun run smoke
 else
   echo ""
-  echo -e "${YELLOW}–${NC} 6/8  Live smoke ${DIM}(skipped)${NC}"
+  echo -e "${YELLOW}–${NC} 6/9  Live smoke ${DIM}(skipped)${NC}"
 fi
 
 # The demo is a claim about the service too: a documented path that no longer
@@ -104,18 +106,24 @@ fi
 # directly; --full exercises the documented public entrypoint (demo/run.sh).
 if [ "$FAST" -eq 0 ]; then
   if [ "$FULL" -eq 1 ]; then
-    step "7/8  Demo (the public demo path: demo/run.sh --check)"
-    run_stage "demo" bash demo/run.sh --check
+    step "7/9  Demo (the public demo path: demo/run.sh --check)"
+    run_stage "demo" bun run demo:run -- --check
   else
-    step "7/8  Demo (seeds a spawned instance; every seeded certificate verifies)"
+    step "7/9  Demo (seeds a spawned instance; every seeded certificate verifies)"
     run_stage "demo" bun run demo:seed --check
   fi
 else
   echo ""
-  echo -e "${YELLOW}–${NC} 7/8  Demo ${DIM}(skipped)${NC}"
+  echo -e "${YELLOW}–${NC} 7/9  Demo ${DIM}(skipped)${NC}"
 fi
 
-step "8/8  Hygiene (no secrets, no committed database, no stray artifacts)"
+# Deployability is a claim that would otherwise only be tested on a `v*` tag, when
+# the container image is built and pushed. Checked here so a Dockerfile that names a
+# missing entrypoint, or drops the volume holding the issuer key, fails on every push.
+step "8/9  Deployability (the container definition still matches the service)"
+run_stage "deployability" bun run image:check
+
+step "9/9  Hygiene (no secrets, no committed database, no stray artifacts)"
 ran=$((ran + 1))  # hygiene checks inline; count it so the summary is honest
 hygiene_fail=0
 

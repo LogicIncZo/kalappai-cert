@@ -10,8 +10,14 @@ compatibility surface clients pin; it only moves when the declared shape moves.
 - **Declared contract** (`src/contract.ts` → `contract/cert-service.v1.json`,
   contract version 1): routes, request/response shapes with `chars`, pass rules,
   rate limit, refusals, credential claims and read-only probes.
-- **Verification gate** (`bun run verify`, 8 stages): contract artifact, docs,
-  typecheck, lint, tests, live smoke, demo, hygiene.
+- **Verification gate** (`bun run verify`, 9 stages): contract artifact, docs,
+  typecheck, lint, tests, live smoke, demo, deployability, hygiene.
+- **Deployability stage** (`bun run image:check`): the `Dockerfile` and
+  `deploy/docker-compose.yml` are checked against the service they package — the
+  CMD entry file exists, EXPOSE matches the default PORT, the healthcheck probes a
+  declared route, `KALAPPAI_CERT_DB` is pinned and its directory is a declared
+  `VOLUME` that compose mounts, and the compose image matches what CI publishes.
+  This protects a release path that otherwise only runs on a `v*` tag.
 - **Deployed-instance conformance** (`bun run smoke:live`): compares a running
   deployment against the committed contract, so "is production actually running
   this commit?" is a command rather than an assumption.
@@ -50,5 +56,8 @@ compatibility surface clients pin; it only moves when the declared shape moves.
   `credential` from the 201 response, and documented `?sig=` as a separate route.
 - `sha256` helper was unused in `src/index.ts`; `import type` used for the
   type-only `Hono` import in `src/cognizance.ts`.
+- **The gate miscounted its own stages.** The hygiene stage ran inline and was
+  never added to the tally, so a nine-stage pass reported eight. It now counts
+  what it ran, and the summary says nine.
 
 [Unreleased]: https://github.com/LogicIncZo/kalappai-cert/commits/main
