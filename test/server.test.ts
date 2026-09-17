@@ -12,7 +12,7 @@ process.env.PORT = String(PORT);
 process.env.KALAPPAI_CERT_SECRET = "test-secret";
 process.env.KALAPPAI_CERT_ORIGIN = "https://logicinczo.github.io";
 
-const { default: app } = await import("../src/index.ts");
+const { default: app, DB_FILE } = await import("../src/index.ts");
 const server = Bun.serve({ port: PORT, fetch: app.fetch });
 afterAll(() => server.stop(true));
 
@@ -134,7 +134,7 @@ describe("kalappai-cert", () => {
     const { id } = (await r.json()) as { id: string };
 
     const { Database } = await import("bun:sqlite");
-    const db = new Database(process.env.KALAPPAI_CERT_DB!);
+    const db = new Database(DB_FILE);
     db.query("UPDATE certs SET net_wpm = 99.9 WHERE id = ?").run(id);
     db.close();
 
