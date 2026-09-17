@@ -16,7 +16,7 @@ import { PASS_RULES, RATE_LIMIT, REFUSALS, STAT_INVARIANTS } from "./contract";
 import QRCode from "qrcode";
 import { cors } from "hono/cors";
 import { Database } from "bun:sqlite";
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 
@@ -52,7 +52,6 @@ if (!SECRET) {
 }
 const secretAt = (t: number) => SECRET || `ephemeral-${Math.floor(t / 86400000)}`;
 
-const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 const sign = (payload: string, at: number) =>
   createHmac("sha256", secretAt(at)).update(payload).digest("hex");
 

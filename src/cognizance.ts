@@ -27,7 +27,7 @@
  *      rejected by design, so any deployment must offer an alternate route with
  *      the same receipt type. See /cognizance/limits.
  */
-import { Hono } from "hono";
+import type { Hono } from "hono";
 import { createHash } from "node:crypto";
 import type { Database } from "bun:sqlite";
 import QRCode from "qrcode";

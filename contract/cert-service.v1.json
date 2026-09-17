@@ -20,8 +20,7 @@
   "rateLimit": {
     "issues": 12,
     "windowMs": 300000,
-    "keyHeader": "x-forwarded-for",
-    "refusalMessage": "rate limited"
+    "keyHeader": "x-forwarded-for"
   },
   "refusals": {
     "invalidJson": {

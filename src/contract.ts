@@ -62,7 +62,6 @@ export const RATE_LIMIT = {
   windowMs: 5 * 60 * 1000,
   /** keyed on `x-forwarded-for`, falling back to the literal "local" */
   keyHeader: "x-forwarded-for",
-  refusalMessage: "rate limited",
 } as const;
 
 /* ----------------------------------------------------------------- refusals */
