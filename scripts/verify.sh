@@ -116,6 +116,7 @@ else
 fi
 
 step "8/8  Hygiene (no secrets, no committed database, no stray artifacts)"
+ran=$((ran + 1))  # hygiene checks inline; count it so the summary is honest
 hygiene_fail=0
 
 # The issuer key and the certificate database must never be committed.
