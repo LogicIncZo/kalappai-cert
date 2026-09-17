@@ -29,9 +29,9 @@ qualification** — the verify page says so explicitly.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| POST | `/api/certificates` | Issue. Body: `{ alias, layoutId, passageId, targetHash, chars, stats: { grossWpm, netWpm, accuracy, errors, strokes, kdph, elapsedMs } }` → `{ id, issuedAt, signature, verifyUrl, vcJwt }` |
-| GET | `/api/certificates/:id` | JSON verification: full record + `signatureValid` |
-| GET | `/api/certificates/:id?sig=<sig>` | Verifies that the record matches the given signature (tamper probe) |
+| GET | `/` | Health + service banner |
+| POST | `/api/certificates` | Issue. Body: `{ alias, layoutId, passageId, targetHash, stats: { grossWpm, netWpm, accuracy, errors, strokes, kdph, elapsedMs, chars } }` → `{ id, issuedAt, signature, verifyPath, verifyUrl, credential, vcJwt }` |
+| GET | `/api/certificates/:id` | JSON verification: full record + `signatureValid` (+ `recordSelfConsistent`, `signatureMatchesProvided` when `?sig=` is supplied) |
 | GET | `/certs/:id` | Human verify page: certificate, QR, print, VC-JWT download |
 | GET | `/api/issuer` | Issuer metadata (`id`, name, publicKeyJwk) |
 | GET | `/.well-known/jwks.json` | Public key (JWKS, Ed25519) |
@@ -39,16 +39,30 @@ qualification** — the verify page says so explicitly.
 | POST | `/api/cognizance/session/:id/reveal` | Reveal the redacted source. Counted by the issuer; a reveal forfeits `T3` |
 | POST | `/api/cognizance` | Submit keystroke telemetry. Body: `{ sessionId, gateId, fields[] }` → `{ id, tier, verifyPath, vcJwt }`, or `422` with a `reason` |
 | GET | `/api/cognizance/:id` | JSON verification for a receipt + `signatureValid` |
-| GET | `/api/cognizance/gates` | Gate catalogue (redacted) with each gate's SHA-256 |
+| GET | `/cognizance/gates` | Gate catalogue (redacted) with each gate's SHA-256 |
 | GET | `/cognizance` | The demo gate — try it in a browser |
 | GET | `/cognizance/r/:id` | Human receipt page: tier, per-field residue, QR, print, VC-JWT download |
 | GET | `/cognizance/limits` | What a receipt asserts, what it does not, the thresholds, known false negatives |
 
 **Pass rules are enforced server-side** (accuracy ≥ 90%, ≥ 30 s, ≥ 120 chars) —
-a client cannot talk its way to a certificate.
+and every rule is evaluated on a value the server itself parsed, so a client
+cannot *skip* a rule by omitting a field (all eight `stats` fields, `chars`
+included, are required).
+
+Two further refusals apply before the pass rules, both `400`: a report that
+contradicts itself is refused as `implausible typing report` — net WPM above
+gross WPM, 100 % accuracy reported alongside errors, more errors than strokes.
+These catch sloppy fabrication, not a determined forger; see
+[docs/ANTI-GAMING.md](docs/ANTI-GAMING.md) for what these certificates do and
+do not attest.
 
 `targetHash` is the SHA-256 of the exact passage typed, binding the credential
 to the exercise rather than to a claim.
+
+To check a signature you already hold, pass it as the `?sig=` query parameter on
+`GET /api/certificates/:id`. The response separates the two questions: if the
+stored record itself no longer hashes to its signature, `recordSelfConsistent`
+is `false` and `signatureValid` is `false` whatever the caller supplied.
 
 ## The cognizance gate (கவனிப்பு) — "was this produced, deliberately, by a human?"
 
