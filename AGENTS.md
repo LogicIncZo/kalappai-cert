@@ -39,8 +39,9 @@ leaving the repo in a state where the gate passes but the deployment is untested
 | 4 | `lint` | Biome (`--error-on-warnings`). Formatting is deliberately off; this is a bug gate, not a style gate. |
 | 5 | `test` | Contract conformance + server + cognizance suites. `test/contract.test.ts` reads only the **artifact** and drives a spawned instance — it cannot pass by agreeing with the source it is meant to check. |
 | 6 | `smoke` | Spawns the documented entrypoint on a temp DB and drives issue → verify → tamper → VC-JWT-against-JWKS end to end. Proves the real entrypoint boots, not just that `app.fetch` works. |
-| 7 | `image:check` | The `Dockerfile` and `deploy/docker-compose.yml` still match the service they package: the CMD entry file exists, EXPOSE matches the default PORT, the healthcheck probes a declared route, `KALAPPAI_CERT_DB` is pinned and its directory is a declared `VOLUME` mounted by compose, and the compose image matches what CI publishes. Runs on every invocation, `--fast` included: it is pure static analysis, and it protects a release path that otherwise only runs on a tag. |
-| 8 | `hygiene` | No committed database or issuer key, no secret-shaped literals in tracked source, no stray artifacts. |
+| 7 | `demo` | The public demo path still works: `--fast` runs `demo/run.sh --check` against the committed demo set; a full run (`verify --full`) seeds a fresh spawned instance and verifies every seeded certificate, QR and VC-JWT. Keeps demo infrastructure from rotting. |
+| 8 | `image:check` | The `Dockerfile` and `deploy/docker-compose.yml` still match the service they package: the CMD entry file exists, EXPOSE matches the default PORT, the healthcheck probes a declared route, `KALAPPAI_CERT_DB` is pinned and its directory is a declared `VOLUME` mounted by compose, and the compose image matches what CI publishes. Pure static analysis, so it runs on every invocation, `--fast` included — it protects a release path that otherwise only runs on a tag. |
+| 9 | `hygiene` | No committed database or issuer key, no secret-shaped literals in tracked source, no stray artifacts. |
 
 Deployment-side gates (run by CI, and by you after a deploy):
 
@@ -104,7 +105,7 @@ Env vars: `PORT`, `KALAPPAI_CERT_SECRET`, `KALAPPAI_CERT_DB`, `KALAPPAI_CERT_BAS
 | `src/contract.ts` | **The declared surface.** Routes, fields, pass rules, refusals, claims |
 | `src/cognizance.ts` | Keystroke-attested cognizance gate (sessions, reveals, tiers, receipts) |
 | `contract/cert-service.v1.json` | Emitted artifact; clients pin its SHA-256 |
-| `scripts/verify.sh` | The gate. `scripts/emit-contract.ts`, `check-docs.ts`, `smoke.ts`, `smoke-live.ts` |
+| `scripts/verify.sh` | The gate. `scripts/emit-contract.ts`, `check-docs.ts`, `check-image.ts`, `smoke.ts`, `smoke-live.ts` |
 | `test/` | `contract.test.ts` (artifact-driven conformance), `server.test.ts`, `cognizance.test.ts` |
 | `demo/` | Runnable end-to-end demo + seeded certificate set |
 | `deploy/`, `Dockerfile` | Self-hosting |
