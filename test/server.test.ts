@@ -24,7 +24,7 @@ function issueBody() {
     targetHash: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
     stats: {
       grossWpm: 21.4, netWpm: 19.8, accuracy: 96.2,
-      errors: 3, strokes: 180, kdph: 1100, elapsedMs: 60000,
+      errors: 3, strokes: 180, kdph: 1100, elapsedMs: 60000, chars: 145,
     },
   };
 }

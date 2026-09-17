@@ -12,6 +12,7 @@
  */
 import { Hono } from "hono";
 import { mountCognizance } from "./cognizance";
+import { PASS_RULES, RATE_LIMIT, REFUSALS, STAT_INVARIANTS } from "./contract";
 import QRCode from "qrcode";
 import { cors } from "hono/cors";
 import { Database } from "bun:sqlite";
@@ -161,14 +162,14 @@ function newId(): string {
   return s;
 }
 
-/* naive per-IP limiter: 12 issues / 5 min */
+/* naive per-IP limiter: `issues` per `windowMs`, taken from the declared contract */
 const hits = new Map<string, number[]>();
 function limited(ip: string): boolean {
   const now = Date.now();
-  const arr = (hits.get(ip) ?? []).filter((t) => now - t < 5 * 60 * 1000);
+  const arr = (hits.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT.windowMs);
   arr.push(now);
   hits.set(ip, arr);
-  return arr.length > 12;
+  return arr.length > RATE_LIMIT.issues;
 }
 
 const num = (v: unknown, lo: number, hi: number): number | null => {
@@ -185,10 +186,10 @@ app.get("/", (c) =>
 
 app.post("/api/certificates", async (c) => {
   const ip = c.req.header("x-forwarded-for") ?? "local";
-  if (limited(ip)) return c.json({ error: "rate limited" }, 429);
+  if (limited(ip)) return c.json({ error: REFUSALS.rateLimited.error }, REFUSALS.rateLimited.status);
 
   let b: Record<string, unknown>;
-  try { b = (await c.req.json()) as Record<string, unknown>; } catch { return c.json({ error: "invalid json" }, 400); }
+  try { b = (await c.req.json()) as Record<string, unknown>; } catch { return c.json({ error: REFUSALS.invalidJson.error }, REFUSALS.invalidJson.status); }
   const stats = (b.stats ?? {}) as Record<string, unknown>;
   const alias = String(b.alias ?? "").trim().slice(0, 40);
   const layoutId = String(b.layoutId ?? "").trim().slice(0, 20);
@@ -205,13 +206,29 @@ app.post("/api/certificates", async (c) => {
   const targetHash = String(b.targetHash ?? "").match(/^[0-9a-f]{64}$/)?.[0];
 
   if (!alias || !layoutId || !passageId || !targetHash || gross === null || net === null ||
-      accuracy === null || errors === null || strokes === null || kdph === null || elapsedMs === null) {
-    return c.json({ error: "invalid certificate request" }, 400);
+      accuracy === null || errors === null || strokes === null || kdph === null || elapsedMs === null ||
+      chars === null) {
+    return c.json({ error: REFUSALS.invalidRequest.error }, REFUSALS.invalidRequest.status);
   }
 
-  const PASS = { accuracy: 90, elapsedMs: 30_000, chars: 120 };
-  if (accuracy < PASS.accuracy || elapsedMs < PASS.elapsedMs || (chars !== null && chars < PASS.chars)) {
-    return c.json({ error: "attempt does not meet pass rules" }, 422);
+  /* Cross-field invariants an honest client satisfies by construction, declared in the
+     contract so the document and the behaviour cannot drift. A violation means the report
+     is fabricated or the client is broken: a malformed report (400), not a failed attempt
+     (422). These refuse self-contradictory payloads — they are not proof of authenticity,
+     which is what docs/ANTI-GAMING.md is about. */
+  const implausible =
+    (STAT_INVARIANTS.netNotAboveGross && net > gross) ||
+    (STAT_INVARIANTS.perfectAccuracyImpliesNoErrors && accuracy >= 100 && errors > 0) ||
+    (STAT_INVARIANTS.errorsNotAboveStrokes && errors > strokes);
+  if (implausible) {
+    return c.json({ error: REFUSALS.implausibleStats.error }, REFUSALS.implausibleStats.status);
+  }
+
+  /* Pass rules come from the declared contract, and every rule is evaluated on a value the
+     server itself parsed — a client cannot skip a rule by omitting a field. */
+  if (accuracy < PASS_RULES.accuracyPercent || elapsedMs < PASS_RULES.minElapsedMs ||
+      chars < PASS_RULES.minChars) {
+    return c.json({ error: REFUSALS.failedPassRules.error }, REFUSALS.failedPassRules.status);
   }
 
   const issuedAt = Date.now();
@@ -243,7 +260,7 @@ app.get("/.well-known/jwks.json", (c) =>
 
 app.get("/api/certificates/:id", (c) => {
   const row = db.query("SELECT * FROM certs WHERE id = ?").get(c.req.param("id")) as DBRow | null;
-  if (!row) return c.json({ error: "not found" }, 404);
+  if (!row) return c.json({ error: REFUSALS.notFound.error }, REFUSALS.notFound.status);
   const { signature: _stored, ...payload } = row;
   const recalc = sign(canonical(payload), row.issued_at);
   const a = Buffer.from(recalc);
