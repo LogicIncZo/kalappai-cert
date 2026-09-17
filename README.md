@@ -94,6 +94,9 @@ Receipts are W3C VC 2.0 (the same EdDSA VC-JWT and JWKS as the certificates), ty
 Verify at `/cognizance/r/:id`, try it at `/cognizance`, read the limits at
 `/cognizance/limits`.
 
+![The gate mid-attempt: an agent filled the fields, the keystroke check refuses it](docs/cognizance-gate.png)
+![A T3 receipt: per-field residue, the reveals the issuer recorded, the QR back to itself](docs/cognizance-receipt-t3.png)
+
 The three gates in `src/cognizance.ts` are illustrative examples with no real PII. In a
 deployment, the gate definitions belong to the relying party and this service only issues
 and verifies.
