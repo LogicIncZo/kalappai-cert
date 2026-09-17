@@ -12,7 +12,7 @@
  */
 import { Hono } from "hono";
 import { mountCognizance } from "./cognizance";
-import { PASS_RULES, RATE_LIMIT, REFUSALS, STAT_INVARIANTS } from "./contract";
+import { PASS_RULES, RATE_LIMIT, REFUSALS, STAT_INVARIANTS, VERIFICATION } from "./contract";
 import QRCode from "qrcode";
 import { cors } from "hono/cors";
 import { Database } from "bun:sqlite";
@@ -260,12 +260,29 @@ app.get("/.well-known/jwks.json", (c) =>
 app.get("/api/certificates/:id", (c) => {
   const row = db.query("SELECT * FROM certs WHERE id = ?").get(c.req.param("id")) as DBRow | null;
   if (!row) return c.json({ error: REFUSALS.notFound.error }, REFUSALS.notFound.status);
-  const { signature: _stored, ...payload } = row;
-  const recalc = sign(canonical(payload), row.issued_at);
-  const a = Buffer.from(recalc);
-  const b = Buffer.from(row.signature);
-  const valid = a.length === b.length && timingSafeEqual(a, b);
-  return c.json({ certificate: row, signatureValid: valid });
+
+  /* Two independent questions, reported separately so "false" is never ambiguous:
+     did the stored record survive (recompute vs stored), and does the signature the
+     caller holds match the one on the record (the documented ?sig= tamper probe).
+     A tampered row fails the first however good the caller's copy is. */
+  const { signature: storedSignature, ...payload } = row;
+  const recalc = Buffer.from(sign(canonical(payload), row.issued_at));
+  const stored = Buffer.from(storedSignature);
+  const recordSelfConsistent = recalc.length === stored.length && timingSafeEqual(recalc, stored);
+
+  const provided = c.req.query(VERIFICATION.signatureProbeParam);
+  let signatureMatchesProvided: boolean | null = null;
+  if (provided !== undefined) {
+    const p = Buffer.from(provided);
+    signatureMatchesProvided = p.length === stored.length && timingSafeEqual(p, stored);
+  }
+
+  return c.json({
+    certificate: row,
+    signatureValid: recordSelfConsistent && signatureMatchesProvided !== false,
+    recordSelfConsistent,
+    signatureMatchesProvided,
+  });
 });
 
 app.get("/certs/:id", async (c) => {

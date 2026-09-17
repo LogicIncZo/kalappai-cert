@@ -112,6 +112,18 @@ export const VERIFICATION = {
   signatureProbeParam: "sig",
   /** QR in the page encodes this page's own absolute URL */
   qrTargetsSelf: true,
+  /**
+   * Keys on a verification response. `recordSelfConsistent` answers "did the stored
+   * record survive" and `signatureMatchesProvided` answers "does the signature the
+   * caller holds match this record" (null when no `?sig=` was supplied) — so a
+   * `signatureValid: false` is never ambiguous between the two.
+   */
+  responseFields: [
+    "certificate",
+    "signatureValid",
+    "recordSelfConsistent",
+    "signatureMatchesProvided",
+  ] as const,
 } as const;
 
 /* -------------------------------------------------------------- credential */

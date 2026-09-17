@@ -47,7 +47,13 @@ export function buildArtifact() {
     verification: { ...VERIFICATION },
     credential: { ...CREDENTIAL },
     claims: { ...CLAIMS },
-    routes: ROUTES.map((r) => ({ method: r.method, path: r.path, purpose: r.purpose })),
+    /**
+     * Every declared route, with the trivial request the gate uses to confirm the
+     * route is live (`probe.expect` = acceptable statuses for that probe, `probe.json`
+     * = the response must parse as JSON). A documented endpoint that is not served
+     * fails `test/contract.test.ts`.
+     */
+    routes: ROUTES.map((r) => ({ method: r.method, path: r.path, purpose: r.purpose, probe: r.probe })),
   };
 }
 

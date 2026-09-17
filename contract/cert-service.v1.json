@@ -83,7 +83,13 @@
     "jsonPath": "/api/certificates/:id",
     "humanPath": "/certs/:id",
     "signatureProbeParam": "sig",
-    "qrTargetsSelf": true
+    "qrTargetsSelf": true,
+    "responseFields": [
+      "certificate",
+      "signatureValid",
+      "recordSelfConsistent",
+      "signatureMatchesProvided"
+    ]
   },
   "credential": {
     "spec": "W3C Verifiable Credentials 2.0",
@@ -117,72 +123,158 @@
     {
       "method": "GET",
       "path": "/",
-      "purpose": "health + service banner"
+      "purpose": "health + service banner",
+      "probe": {
+        "expect": [
+          200
+        ],
+        "json": true
+      }
     },
     {
       "method": "POST",
       "path": "/api/certificates",
-      "purpose": "issue a certificate"
+      "purpose": "issue a certificate",
+      "probe": {
+        "expect": [
+          400
+        ],
+        "json": true
+      }
     },
     {
       "method": "GET",
       "path": "/api/certificates/:id",
-      "purpose": "JSON verification + signatureValid"
+      "purpose": "JSON verification + signatureValid",
+      "probe": {
+        "expect": [
+          404
+        ],
+        "json": true
+      }
     },
     {
       "method": "GET",
       "path": "/certs/:id",
-      "purpose": "human verify page (QR, print, VC-JWT)"
+      "purpose": "human verify page (QR, print, VC-JWT)",
+      "probe": {
+        "expect": [
+          404
+        ],
+        "json": false
+      }
     },
     {
       "method": "GET",
       "path": "/api/issuer",
-      "purpose": "issuer metadata + public key"
+      "purpose": "issuer metadata + public key",
+      "probe": {
+        "expect": [
+          200
+        ],
+        "json": true
+      }
     },
     {
       "method": "GET",
       "path": "/.well-known/jwks.json",
-      "purpose": "public key set (Ed25519)"
+      "purpose": "public key set (Ed25519)",
+      "probe": {
+        "expect": [
+          200
+        ],
+        "json": true
+      }
     },
     {
       "method": "POST",
       "path": "/api/cognizance/session",
-      "purpose": "open a cognizance gate session"
+      "purpose": "open a cognizance gate session",
+      "probe": {
+        "expect": [
+          404
+        ],
+        "json": true
+      }
     },
     {
       "method": "POST",
       "path": "/api/cognizance/session/:id/reveal",
-      "purpose": "reveal the redacted source (issuer-counted)"
+      "purpose": "reveal the redacted source (issuer-counted)",
+      "probe": {
+        "expect": [
+          404
+        ],
+        "json": true
+      }
     },
     {
       "method": "POST",
       "path": "/api/cognizance",
-      "purpose": "submit keystroke telemetry"
+      "purpose": "submit keystroke telemetry",
+      "probe": {
+        "expect": [
+          400,
+          404,
+          422
+        ],
+        "json": true
+      }
     },
     {
       "method": "GET",
       "path": "/api/cognizance/:id",
-      "purpose": "receipt verification + signatureValid"
+      "purpose": "receipt verification + signatureValid",
+      "probe": {
+        "expect": [
+          404
+        ],
+        "json": true
+      }
     },
     {
       "method": "GET",
       "path": "/cognizance/gates",
-      "purpose": "gate catalogue, recall secrets redacted"
+      "purpose": "gate catalogue, recall secrets redacted",
+      "probe": {
+        "expect": [
+          200
+        ],
+        "json": true
+      }
     },
     {
       "method": "GET",
       "path": "/cognizance",
-      "purpose": "the demo gate, try it in a browser"
+      "purpose": "the demo gate, try it in a browser",
+      "probe": {
+        "expect": [
+          200
+        ],
+        "json": false
+      }
     },
     {
       "method": "GET",
       "path": "/cognizance/r/:id",
-      "purpose": "human receipt page"
+      "purpose": "human receipt page",
+      "probe": {
+        "expect": [
+          404
+        ],
+        "json": false
+      }
     },
     {
       "method": "GET",
       "path": "/cognizance/limits",
-      "purpose": "what a receipt asserts and does not"
+      "purpose": "what a receipt asserts and does not",
+      "probe": {
+        "expect": [
+          200
+        ],
+        "json": false
+      }
     }
   ]
 }
